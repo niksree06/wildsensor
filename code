@@ -29,7 +29,7 @@ void setup() {
   pinMode(ECHO, INPUT);
 
   pinMode(IR_PIN, INPUT);
-
+pinMode(LDR_PIN, INPUT);
   pinMode(RED_LED, OUTPUT);
   pinMode(YELLOW_LED, OUTPUT);
   pinMode(GREEN_LED, OUTPUT);
@@ -47,10 +47,10 @@ void loop() {
 
   // You will likely need to adjust this! 
   // Since the LDR is now running on 3.3V instead of 5V, the ADC values will shift.
-  isNight = (ldrValue < 500);
+  isNight = (ldrValue < 100);
 
   // -------- MOTION CHECK --------
-  if (digitalRead(IR_PIN) == LOW && isNight) {
+  if (digitalRead(LDR_PIN) == LOW ) {
 
     distance = getDistance();
 
