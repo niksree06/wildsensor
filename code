@@ -1,0 +1,158 @@
+// -------------------- PIN DEFINITIONS --------------------
+#define TRIG 9
+#define ECHO 8
+
+#define IR_PIN 7
+#define LDR_PIN A0
+
+#define RED_LED 4
+#define YELLOW_LED 5
+#define GREEN_LED 6
+
+#define BUZZER 3
+
+// -------------------- VARIABLES --------------------
+float distance;
+int ldrValue;
+bool isNight;
+int category = 0;
+
+unsigned long previousMillis = 0;
+unsigned long beepInterval = 0;
+bool buzzerState = false;
+
+// -------------------- SETUP --------------------
+void setup() {
+  Serial.begin(115200); // 115200 is often preferred for 32-bit/RISC-V boards
+
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+
+  pinMode(IR_PIN, INPUT);
+
+  pinMode(RED_LED, OUTPUT);
+  pinMode(YELLOW_LED, OUTPUT);
+  pinMode(GREEN_LED, OUTPUT);
+
+  pinMode(BUZZER, OUTPUT);
+
+  digitalWrite(TRIG, LOW);
+}
+
+// -------------------- MAIN LOOP --------------------
+void loop() {
+
+  // -------- NIGHT DETECTION --------
+  ldrValue = analogRead(LDR_PIN);
+
+  // You will likely need to adjust this! 
+  // Since the LDR is now running on 3.3V instead of 5V, the ADC values will shift.
+  isNight = (ldrValue < 500);
+
+  // -------- MOTION CHECK --------
+  if (digitalRead(IR_PIN) == LOW && isNight) {
+
+    distance = getDistance();
+
+    Serial.print("Distance: ");
+    Serial.println(distance);
+
+    classify(distance);
+    handleAlert();
+
+  } else {
+    resetOutputs();
+  }
+
+  delay(100);   // small stability delay
+}
+
+// -------------------- ULTRASONIC FUNCTION --------------------
+float getDistance() {
+
+  long duration;
+  float total = 0;
+
+  for (int i = 0; i < 5; i++) {
+    digitalWrite(TRIG, LOW);
+    delayMicroseconds(2);
+
+    digitalWrite(TRIG, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIG, LOW);
+
+    duration = pulseIn(ECHO, HIGH, 30000); // timeout 30ms
+
+    float d = duration * 0.034 / 2;
+
+    total += d;
+    delay(10);
+  }
+
+  return total / 5;  // average
+}
+
+// -------------------- CLASSIFICATION --------------------
+void classify(float d) {
+
+  if (d > 0 && d < 10) {
+    category = 3; 
+
+  }
+  else if (d >= 10 && d < 25) {
+    category = 2;   
+  }
+  else if (d >= 25 && d <500) {
+    category = 1;   
+  }
+  else {
+    category = 0;
+  }
+}
+
+// -------------------- ALERT CONTROL --------------------
+void handleAlert() {
+
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(YELLOW_LED, LOW);
+  digitalWrite(GREEN_LED, LOW);
+
+  if (category == 3) {
+    digitalWrite(RED_LED, HIGH);
+    digitalWrite(BUZZER, HIGH);   
+    buzzerState = true;           
+  }
+  else if (category == 2) {
+    digitalWrite(YELLOW_LED, HIGH);
+    beepInterval = 300;           
+    beepNonBlocking();
+  }
+  else if (category == 1) {
+    digitalWrite(GREEN_LED, HIGH);
+    beepInterval = 600;      
+    digitalWrite(BUZZER, LOW);      
+    
+  }
+}
+
+// -------------------- NON-BLOCKING BEEP --------------------
+void beepNonBlocking() {
+
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= beepInterval) {
+    previousMillis = currentMillis;
+
+    buzzerState = !buzzerState;
+    digitalWrite(BUZZER, buzzerState);
+  }
+}
+
+// -------------------- RESET --------------------
+void resetOutputs() {
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(YELLOW_LED, LOW);
+  digitalWrite(GREEN_LED, LOW);
+  digitalWrite(BUZZER, LOW);
+  buzzerState = false; 
+}
